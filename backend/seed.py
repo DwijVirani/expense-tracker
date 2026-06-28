@@ -20,7 +20,7 @@ from bson import ObjectId
 
 from app.categories import DEFAULT_CATEGORIES
 
-MONGO_URI = "mongodb+srv://dwijvirani:bGj5qPrASQzHwZ60@cluster0.qodgkqy.mongodb.net/expense_tracker?appName=Cluster0"
+MONGO_URI = "mongodb://localhost:27017/expense_tracker"
 SEED_SUB = "seed-user-sub-001"
 SEED_EMAIL = "demo@example.com"
 
