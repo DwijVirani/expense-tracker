@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 interface Settings {
   currency: string;
@@ -148,8 +149,8 @@ export default function SettingsPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-        <p className="font-mono text-zinc-500 text-sm">authenticating...</p>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground text-sm">Loading…</p>
       </div>
     );
   }
@@ -162,54 +163,57 @@ export default function SettingsPage() {
       : DEFAULT_CATEGORIES;
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
+    <div className="min-h-screen bg-background text-foreground">
       {/* ── Header ── */}
-      <header className="border-b border-zinc-800 px-6 py-3 flex items-center justify-between">
+      <header className="border-b border-border bg-card px-6 py-3 flex items-center justify-between sticky top-0 z-10 shadow-sm">
         <div className="flex items-center gap-4">
           <Link
             href="/dashboard"
-            className="text-xs font-mono text-zinc-500 hover:text-zinc-300 transition-colors"
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
-            ← dashboard
+            ← Dashboard
           </Link>
-          <span className="font-mono text-sm text-zinc-400 tracking-widest uppercase">
-            settings
-          </span>
+          <span className="font-semibold text-foreground">Settings</span>
         </div>
-        <span className="text-xs font-mono text-zinc-600">{user.email}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground hidden sm:block">
+            {user.email}
+          </span>
+          <ThemeToggle />
+        </div>
       </header>
 
       <main className="max-w-2xl mx-auto px-6 py-10 flex flex-col gap-8">
         {loadError && (
-          <p className="text-xs font-mono text-red-400 border border-red-900 rounded px-3 py-2">
-            error: {loadError}
+          <p className="text-sm text-destructive border border-destructive/30 bg-destructive/10 rounded-md px-3 py-2">
+            Error: {loadError}
           </p>
         )}
 
         <form onSubmit={handleSave} className="flex flex-col gap-6">
           {/* ── General ── */}
-          <Card className="bg-zinc-900 border-zinc-800 text-zinc-100">
+          <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-xs font-mono text-zinc-400 uppercase tracking-widest">
-                general
+              <CardTitle className="text-base font-semibold text-foreground">
+                General
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-mono text-zinc-500 uppercase tracking-wider">
-                  currency symbol
+                <label className="text-sm font-medium text-foreground">
+                  Currency symbol
                 </label>
                 <Input
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value)}
                   placeholder="₹"
                   maxLength={4}
-                  className="bg-zinc-950 border-zinc-700 text-zinc-100 font-mono w-24 placeholder:text-zinc-600 focus-visible:ring-zinc-600"
+                  className="w-24"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-mono text-zinc-500 uppercase tracking-wider">
-                  monthly budget
+                <label className="text-sm font-medium text-foreground">
+                  Monthly budget
                 </label>
                 <Input
                   type="number"
@@ -218,27 +222,27 @@ export default function SettingsPage() {
                   value={monthlyBudget}
                   onChange={(e) => setMonthlyBudget(e.target.value)}
                   placeholder="e.g. 30000"
-                  className="bg-zinc-950 border-zinc-700 text-zinc-100 font-mono w-48 placeholder:text-zinc-600 focus-visible:ring-zinc-600"
+                  className="w-48"
                 />
               </div>
             </CardContent>
           </Card>
 
           {/* ── Per-category budgets ── */}
-          <Card className="bg-zinc-900 border-zinc-800 text-zinc-100">
+          <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-xs font-mono text-zinc-400 uppercase tracking-widest">
-                category caps
+              <CardTitle className="text-base font-semibold text-foreground">
+                Category caps
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-xs font-mono text-zinc-600 mb-4">
-                leave blank to skip a category
+              <p className="text-sm text-muted-foreground mb-4">
+                Leave blank to skip a category
               </p>
               <div className="grid grid-cols-2 gap-x-6 gap-y-3">
                 {categoryKeys.map((cat) => (
                   <div key={cat} className="flex flex-col gap-1">
-                    <label className="text-xs font-mono text-zinc-500">
+                    <label className="text-sm font-medium text-foreground">
                       {cat}
                     </label>
                     <Input
@@ -253,7 +257,7 @@ export default function SettingsPage() {
                         }))
                       }
                       placeholder="—"
-                      className="bg-zinc-950 border-zinc-700 text-zinc-100 font-mono placeholder:text-zinc-700 focus-visible:ring-zinc-600 h-8 text-sm"
+                      className="h-8 text-sm"
                     />
                   </div>
                 ))}
@@ -263,36 +267,32 @@ export default function SettingsPage() {
 
           {/* ── Save button ── */}
           <div className="flex items-center gap-4">
-            <Button
-              type="submit"
-              disabled={saving}
-              className="bg-zinc-100 text-zinc-950 hover:bg-zinc-200 font-mono text-sm"
-            >
-              {saving ? "saving..." : "save settings"}
+            <Button type="submit" disabled={saving}>
+              {saving ? "Saving…" : "Save settings"}
             </Button>
             {saveSuccess && (
-              <span className="text-xs font-mono text-emerald-400">
-                ✓ saved
+              <span className="text-sm text-emerald-600 font-medium">
+                ✓ Saved
               </span>
             )}
             {saveError && (
-              <span className="text-xs font-mono text-red-400">
-                error: {saveError}
+              <span className="text-sm text-destructive">
+                Error: {saveError}
               </span>
             )}
           </div>
         </form>
 
         {/* ── Telegram Linking ── */}
-        <Card className="bg-zinc-900 border-zinc-800 text-zinc-100">
+        <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-xs font-mono text-zinc-400 uppercase tracking-widest">
-              telegram bot
+            <CardTitle className="text-base font-semibold text-foreground">
+              Telegram bot
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            <p className="text-xs font-mono text-zinc-500">
-              link your telegram account to log expenses by sending messages to
+            <p className="text-sm text-muted-foreground">
+              Link your Telegram account to log expenses by sending messages to
               the bot.
             </p>
             <Button
@@ -300,32 +300,32 @@ export default function SettingsPage() {
               onClick={handleTelegramLink}
               disabled={telegramLoading}
               variant="outline"
-              className="w-fit border-zinc-700 text-zinc-300 hover:text-zinc-100 hover:border-zinc-500 bg-transparent font-mono text-sm"
+              className="w-fit"
             >
-              {telegramLoading ? "generating..." : "generate link code"}
+              {telegramLoading ? "Generating…" : "Generate link code"}
             </Button>
             {telegramCode && (
-              <div className="border border-zinc-700 rounded-lg p-4 flex flex-col gap-3 bg-zinc-950">
-                <p className="text-xs font-mono text-zinc-500 uppercase tracking-wider">
-                  your code
+              <div className="border border-border rounded-lg p-4 flex flex-col gap-3 bg-muted/50">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Your code
                 </p>
-                <p className="font-mono text-lg tracking-[0.25em] text-zinc-100 select-all">
+                <p className="font-mono text-2xl tracking-[0.25em] text-foreground font-semibold select-all">
                   {telegramCode}
                 </p>
-                <p className="text-xs font-mono text-zinc-500 leading-relaxed">
-                  open the bot and send:{" "}
-                  <span className="text-zinc-300 bg-zinc-800 px-1.5 py-0.5 rounded">
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Open the bot and send:{" "}
+                  <span className="text-foreground bg-muted px-1.5 py-0.5 rounded font-mono text-sm">
                     /link {telegramCode}
                   </span>
                 </p>
-                <p className="text-xs font-mono text-zinc-600">
-                  code expires in 10 minutes
+                <p className="text-xs text-muted-foreground">
+                  Code expires in 10 minutes
                 </p>
               </div>
             )}
             {telegramError && (
-              <p className="text-xs font-mono text-red-400">
-                error: {telegramError}
+              <p className="text-sm text-destructive">
+                Error: {telegramError}
               </p>
             )}
           </CardContent>

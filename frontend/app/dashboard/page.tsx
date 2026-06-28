@@ -3,12 +3,16 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTheme } from "next-themes";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
 import { formatCurrency } from "@/lib/currency";
+import { categoryColor } from "@/lib/colors";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   Table,
   TableBody,
@@ -28,21 +32,21 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
   type ChartConfig,
 } from "@/components/ui/chart";
 import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   BarChart,
   Bar,
-  ReferenceLine,
-  ResponsiveContainer,
 } from "recharts";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -94,19 +98,6 @@ interface QuickAddResult {
   id?: string;
 }
 
-// ── Palette for charts ─────────────────────────────────────────────────────────
-
-const CHART_COLORS = [
-  "#a1a1aa",
-  "#71717a",
-  "#52525b",
-  "#3f3f46",
-  "#d4d4d8",
-  "#e4e4e7",
-  "#18181b",
-  "#f4f4f5",
-];
-
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 function currentMonth(): string {
@@ -126,7 +117,12 @@ function monthLabel(ym: string): string {
 
 export default function DashboardPage() {
   const { user, loading: authLoading, signOut } = useAuth();
+  const { resolvedTheme } = useTheme();
   const router = useRouter();
+
+  const isDark = resolvedTheme === "dark";
+  const chartGridColor = isDark ? "#334155" : "#E2E8F0";
+  const chartTickColor = isDark ? "#94A3B8" : "#64748B";
 
   const [month, setMonth] = useState(currentMonth());
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -279,13 +275,13 @@ export default function DashboardPage() {
     });
   })();
 
-  // Category chart config
+  // Category chart config — stable color per category name
   const categoryChartConfig: ChartConfig = (summary?.by_category ?? []).reduce(
-    (acc, c, i) => ({
+    (acc, c) => ({
       ...acc,
       [c.category]: {
         label: c.category,
-        color: CHART_COLORS[i % CHART_COLORS.length],
+        color: categoryColor(c.category),
       },
     }),
     {}
@@ -293,13 +289,13 @@ export default function DashboardPage() {
 
   // Mom chart config
   const momChartConfig: ChartConfig = {
-    total: { label: "Spending", color: "#a1a1aa" },
+    total: { label: "Spending", color: "#7C3AED" },
   };
 
-  // Line chart config
-  const lineChartConfig: ChartConfig = {
-    cumulative: { label: "Actual", color: "#a1a1aa" },
-    pace: { label: "Budget pace", color: "#3f3f46" },
+  // Area chart config
+  const areaChartConfig: ChartConfig = {
+    cumulative: { label: "Actual", color: "#7C3AED" },
+    pace: { label: "Budget pace", color: "#94A3B8" },
   };
 
   // Insights
@@ -331,12 +327,20 @@ export default function DashboardPage() {
       c.total > (settings.category_budgets[c.category] ?? 0)
   );
 
+  // ── Burn bar color ──────────────────────────────────────────────────────────
+
+  function burnBarColor() {
+    if (overBudget) return "bg-red-500";
+    if (burnPct > 80) return "bg-amber-500";
+    return "bg-emerald-500";
+  }
+
   // ── Render ──────────────────────────────────────────────────────────────────
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-        <p className="font-mono text-zinc-500 text-sm">authenticating...</p>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground text-sm">Loading…</p>
       </div>
     );
   }
@@ -344,36 +348,34 @@ export default function DashboardPage() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
+    <div className="min-h-screen bg-background text-foreground">
       {/* ── Header ── */}
-      <header className="border-b border-zinc-800 px-6 py-3 flex items-center justify-between">
+      <header className="border-b border-border bg-card px-6 py-3 flex items-center justify-between sticky top-0 z-10 shadow-sm">
         <div className="flex items-center gap-4">
-          <span className="font-mono text-sm text-zinc-400 tracking-widest uppercase">
-            expense-tracker
+          <span className="font-semibold text-foreground tracking-tight">
+            Expense Tracker
           </span>
           <input
             type="month"
             value={month}
             onChange={(e) => setMonth(e.target.value)}
-            className="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs font-mono text-zinc-300 focus:outline-none focus:border-zinc-500"
+            className="bg-background border border-border rounded-md px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
           />
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <Link
             href="/settings"
-            className="text-xs font-mono text-zinc-500 hover:text-zinc-300 transition-colors"
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors px-1"
           >
-            settings
+            Settings
           </Link>
-          <span className="text-zinc-700">|</span>
-          <span className="text-xs font-mono text-zinc-500">{user.email}</span>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={signOut}
-            className="text-xs font-mono border-zinc-700 text-zinc-400 hover:text-zinc-100 hover:border-zinc-500 bg-transparent"
-          >
-            sign out
+          <span className="text-border select-none">|</span>
+          <span className="text-sm text-muted-foreground hidden sm:block">
+            {user.email}
+          </span>
+          <ThemeToggle />
+          <Button size="sm" variant="outline" onClick={signOut}>
+            Sign out
           </Button>
         </div>
       </header>
@@ -381,68 +383,61 @@ export default function DashboardPage() {
       <main className="max-w-5xl mx-auto px-6 py-8 flex flex-col gap-8">
         {/* ── Quick Add ── */}
         <section>
-          <p className="text-xs font-mono text-zinc-500 mb-2">
-            // quick add transaction
-          </p>
+          <h2 className="text-sm font-semibold text-foreground mb-2">
+            Quick add
+          </h2>
           <form onSubmit={handleQuickAdd} className="flex gap-2">
             <Input
               value={quickText}
               onChange={(e) => setQuickText(e.target.value)}
               placeholder='e.g. "coffee 120" or "groceries 850 yesterday"'
-              className="flex-1 bg-zinc-900 border-zinc-700 text-zinc-100 font-mono placeholder:text-zinc-600 focus-visible:ring-zinc-600 text-sm"
+              className="flex-1"
             />
-            <Button
-              type="submit"
-              disabled={quickLoading}
-              className="bg-zinc-100 text-zinc-950 hover:bg-zinc-200 font-mono text-sm px-4"
-            >
-              {quickLoading ? "..." : "add"}
+            <Button type="submit" disabled={quickLoading}>
+              {quickLoading ? "Adding…" : "Add"}
             </Button>
           </form>
           {quickSuccess && (
-            <p className="mt-2 text-xs font-mono text-emerald-400">
-              ✓ {quickSuccess}
-            </p>
+            <p className="mt-2 text-sm text-emerald-600">✓ {quickSuccess}</p>
           )}
           {quickError && (
-            <p className="mt-2 text-xs font-mono text-red-400">
-              error: {quickError}
-            </p>
+            <p className="mt-2 text-sm text-destructive">Error: {quickError}</p>
           )}
           {quickResult && !quickSuccess && (
-            <div className="mt-2 text-xs font-mono text-zinc-400 border border-zinc-800 rounded px-3 py-2">
-              parsed: {quickResult.description} — {formatCurrency(quickResult.amount, sym)} ·{" "}
-              {quickResult.category} · {quickResult.date}
+            <div className="mt-2 text-sm text-muted-foreground border border-border rounded-md px-3 py-2 bg-muted/50">
+              Parsed: {quickResult.description} —{" "}
+              {formatCurrency(quickResult.amount, sym)} · {quickResult.category}{" "}
+              · {quickResult.date}
             </div>
           )}
         </section>
 
         {dataLoading && (
-          <p className="text-xs font-mono text-zinc-500">loading...</p>
+          <p className="text-sm text-muted-foreground">Loading data…</p>
         )}
         {dataError && (
-          <p className="text-xs font-mono text-red-400 border border-red-900 rounded px-3 py-2">
-            error: {dataError}
+          <p className="text-sm text-destructive border border-destructive/30 bg-destructive/10 rounded-md px-3 py-2">
+            Error: {dataError}
           </p>
         )}
 
         {!dataLoading && summary && settings && (
           <>
-            {/* ── Budget Burn Bar ── */}
-            <section className="border border-zinc-800 rounded-lg p-5">
+            {/* ── Budget Burn ── */}
+            <Card className="p-5">
               <div className="flex items-baseline justify-between mb-3">
-                <p className="text-xs font-mono text-zinc-500 uppercase tracking-wider">
-                  budget burn — {monthLabel(month)}
-                </p>
+                <h2 className="text-sm font-semibold text-foreground">
+                  Budget — {monthLabel(month)}
+                </h2>
                 <p
                   className={cn(
-                    "text-sm font-mono tabular-nums",
-                    overBudget ? "text-red-400" : "text-zinc-200"
+                    "text-lg font-semibold tabular-nums",
+                    overBudget ? "text-red-600" : "text-foreground"
                   )}
                 >
                   {formatCurrency(spent, sym)}
                   {budget > 0 && (
-                    <span className="text-zinc-500">
+                    <span className="text-sm font-normal text-muted-foreground">
                       {" "}
                       / {formatCurrency(budget, sym)}
                     </span>
@@ -450,41 +445,41 @@ export default function DashboardPage() {
                 </p>
               </div>
               {budget > 0 ? (
-                <div className="h-2 w-full bg-zinc-800 rounded-full overflow-hidden">
+                <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden">
                   <div
                     className={cn(
-                      "h-full rounded-full transition-all",
-                      overBudget ? "bg-red-500" : "bg-zinc-400"
+                      "h-full rounded-full transition-all duration-500",
+                      burnBarColor()
                     )}
                     style={{ width: `${burnPct}%` }}
                   />
                 </div>
               ) : (
-                <p className="text-xs font-mono text-zinc-600">
-                  no budget set —{" "}
-                  <Link href="/settings" className="underline">
+                <p className="text-sm text-muted-foreground">
+                  No budget set —{" "}
+                  <Link href="/settings" className="underline text-primary">
                     configure in settings
                   </Link>
                 </p>
               )}
               {overBudget && (
-                <p className="mt-2 text-xs font-mono text-red-400">
-                  over budget by {formatCurrency(spent - budget, sym)}
+                <p className="mt-2 text-sm text-red-600">
+                  Over budget by {formatCurrency(spent - budget, sym)}
                 </p>
               )}
-            </section>
+            </Card>
 
             {/* ── Charts row ── */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Category donut */}
-              <section className="border border-zinc-800 rounded-lg p-5">
-                <p className="text-xs font-mono text-zinc-500 uppercase tracking-wider mb-4">
-                  by category
-                </p>
+              <Card className="p-5">
+                <h2 className="text-sm font-semibold text-foreground mb-4">
+                  By category
+                </h2>
                 {summary.by_category.length > 0 ? (
                   <ChartContainer
                     config={categoryChartConfig}
-                    className="h-48 w-full"
+                    className="h-56 w-full"
                   >
                     <PieChart>
                       <Pie
@@ -493,13 +488,15 @@ export default function DashboardPage() {
                         nameKey="category"
                         cx="50%"
                         cy="50%"
-                        innerRadius="55%"
-                        outerRadius="80%"
+                        innerRadius="50%"
+                        outerRadius="75%"
                       >
-                        {summary.by_category.map((entry, index) => (
+                        {summary.by_category.map((entry) => (
                           <Cell
                             key={entry.category}
-                            fill={CHART_COLORS[index % CHART_COLORS.length]}
+                            fill={categoryColor(entry.category)}
+                            stroke="#fff"
+                            strokeWidth={2}
                           />
                         ))}
                       </Pie>
@@ -512,37 +509,38 @@ export default function DashboardPage() {
                           />
                         }
                       />
+                      <ChartLegend content={<ChartLegendContent />} />
                     </PieChart>
                   </ChartContainer>
                 ) : (
-                  <p className="text-xs font-mono text-zinc-600 h-48 flex items-center">
-                    no data
+                  <p className="text-sm text-muted-foreground h-56 flex items-center">
+                    No data yet
                   </p>
                 )}
-              </section>
+              </Card>
 
               {/* Month-over-month bar */}
-              <section className="border border-zinc-800 rounded-lg p-5">
-                <p className="text-xs font-mono text-zinc-500 uppercase tracking-wider mb-4">
-                  month over month
-                </p>
+              <Card className="p-5">
+                <h2 className="text-sm font-semibold text-foreground mb-4">
+                  Month over month
+                </h2>
                 {summary.month_over_month.length > 0 ? (
                   <ChartContainer
                     config={momChartConfig}
-                    className="h-48 w-full"
+                    className="h-56 w-full"
                   >
                     <BarChart
                       data={summary.month_over_month.slice(-6)}
-                      margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
+                      margin={{ top: 4, right: 0, left: 0, bottom: 0 }}
                     >
                       <CartesianGrid
                         strokeDasharray="3 3"
-                        stroke="#27272a"
+                        stroke={chartGridColor}
                         vertical={false}
                       />
                       <XAxis
                         dataKey="month"
-                        tick={{ fill: "#71717a", fontSize: 10, fontFamily: "monospace" }}
+                        tick={{ fill: chartTickColor, fontSize: 11 }}
                         tickFormatter={monthLabel}
                         axisLine={false}
                         tickLine={false}
@@ -558,44 +556,68 @@ export default function DashboardPage() {
                           />
                         }
                       />
-                      <Bar dataKey="total" fill="#71717a" radius={[2, 2, 0, 0]} />
+                      <Bar
+                        dataKey="total"
+                        fill="#7C3AED"
+                        radius={[4, 4, 0, 0]}
+                      />
                     </BarChart>
                   </ChartContainer>
                 ) : (
-                  <p className="text-xs font-mono text-zinc-600 h-48 flex items-center">
-                    no data
+                  <p className="text-sm text-muted-foreground h-56 flex items-center">
+                    No data yet
                   </p>
                 )}
-              </section>
+              </Card>
             </div>
 
-            {/* Daily burn line chart */}
-            <section className="border border-zinc-800 rounded-lg p-5">
-              <p className="text-xs font-mono text-zinc-500 uppercase tracking-wider mb-4">
-                daily cumulative spend
-                {budget > 0 && (
-                  <span className="text-zinc-600 ml-2">
-                    vs budget pace ({formatCurrency(Math.round(dailyBudgetPace), sym)}/day)
-                  </span>
-                )}
-              </p>
+            {/* ── Daily cumulative area chart ── */}
+            <Card className="p-5">
+              <h2 className="text-sm font-semibold text-foreground mb-1">
+                Daily cumulative spend
+              </h2>
+              {budget > 0 && (
+                <p className="text-xs text-muted-foreground mb-4">
+                  vs budget pace ({formatCurrency(Math.round(dailyBudgetPace), sym)}/day)
+                </p>
+              )}
               {cumulativeDaily.length > 0 ? (
                 <ChartContainer
-                  config={lineChartConfig}
+                  config={areaChartConfig}
                   className="h-48 w-full"
                 >
-                  <LineChart
+                  <AreaChart
                     data={cumulativeDaily}
-                    margin={{ top: 0, right: 8, left: 0, bottom: 0 }}
+                    margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
                   >
+                    <defs>
+                      <linearGradient
+                        id="gradCumulativeSpend"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor="#7C3AED"
+                          stopOpacity={0.18}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor="#7C3AED"
+                          stopOpacity={0.01}
+                        />
+                      </linearGradient>
+                    </defs>
                     <CartesianGrid
                       strokeDasharray="3 3"
-                      stroke="#27272a"
+                      stroke={chartGridColor}
                       vertical={false}
                     />
                     <XAxis
                       dataKey="date"
-                      tick={{ fill: "#71717a", fontSize: 10, fontFamily: "monospace" }}
+                      tick={{ fill: chartTickColor, fontSize: 10 }}
                       axisLine={false}
                       tickLine={false}
                       interval="preserveStartEnd"
@@ -610,57 +632,59 @@ export default function DashboardPage() {
                         />
                       }
                     />
-                    <Line
+                    <Area
                       type="monotone"
                       dataKey="cumulative"
-                      stroke="#a1a1aa"
-                      strokeWidth={2}
+                      stroke="#7C3AED"
+                      strokeWidth={2.5}
+                      fill="url(#gradCumulativeSpend)"
                       dot={false}
                       name="Actual"
                     />
                     {budget > 0 && (
-                      <Line
+                      <Area
                         type="monotone"
                         dataKey="pace"
-                        stroke="#3f3f46"
-                        strokeWidth={1}
+                        stroke="#94A3B8"
+                        strokeWidth={1.5}
                         strokeDasharray="4 4"
+                        fill="none"
                         dot={false}
                         name="Budget pace"
                       />
                     )}
-                  </LineChart>
+                  </AreaChart>
                 </ChartContainer>
               ) : (
-                <p className="text-xs font-mono text-zinc-600">
-                  no transactions this month
+                <p className="text-sm text-muted-foreground">
+                  No transactions this month
                 </p>
               )}
-            </section>
+            </Card>
 
             {/* ── Category Ledger ── */}
-            <section className="border border-zinc-800 rounded-lg p-5">
-              <p className="text-xs font-mono text-zinc-500 uppercase tracking-wider mb-4">
-                category ledger
-              </p>
+            <Card className="p-5">
+              <h2 className="text-sm font-semibold text-foreground mb-4">
+                Category ledger
+              </h2>
               {summary.by_category.length > 0 ? (
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-zinc-800 hover:bg-transparent">
-                      <TableHead className="text-xs font-mono text-zinc-500 uppercase">
-                        category
+                    <TableRow className="border-border hover:bg-transparent">
+                      <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Category
                       </TableHead>
-                      <TableHead className="text-xs font-mono text-zinc-500 uppercase text-right">
-                        amount
+                      <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wide text-right">
+                        Amount
                       </TableHead>
-                      <TableHead className="text-xs font-mono text-zinc-500 uppercase text-right">
+                      <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wide text-right">
                         %
                       </TableHead>
-                      <TableHead className="text-xs font-mono text-zinc-500 uppercase text-right">
-                        txns
+                      <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wide text-right">
+                        Txns
                       </TableHead>
-                      <TableHead className="text-xs font-mono text-zinc-500 uppercase text-right">
-                        cap
+                      <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wide text-right">
+                        Cap
                       </TableHead>
                     </TableRow>
                   </TableHeader>
@@ -671,37 +695,45 @@ export default function DashboardPage() {
                       return (
                         <TableRow
                           key={cat.category}
-                          className="border-zinc-800 hover:bg-zinc-900/50"
+                          className="border-border hover:bg-muted/50"
                         >
-                          <TableCell className="font-mono text-sm text-zinc-200">
+                          <TableCell className="text-sm text-foreground font-medium flex items-center gap-2">
+                            <span
+                              className="inline-block h-2 w-2 rounded-full shrink-0"
+                              style={{
+                                backgroundColor: categoryColor(cat.category),
+                              }}
+                            />
                             {cat.category}
                           </TableCell>
                           <TableCell
                             className={cn(
-                              "font-mono text-sm tabular-nums text-right",
-                              overCap ? "text-red-400" : "text-zinc-200"
+                              "text-sm tabular-nums text-right font-semibold",
+                              overCap ? "text-red-600" : "text-foreground"
                             )}
                           >
                             {formatCurrency(cat.total, sym)}
                           </TableCell>
-                          <TableCell className="font-mono text-xs text-zinc-500 text-right tabular-nums">
+                          <TableCell className="text-sm text-muted-foreground text-right tabular-nums">
                             {cat.pct.toFixed(1)}%
                           </TableCell>
-                          <TableCell className="font-mono text-xs text-zinc-500 text-right tabular-nums">
+                          <TableCell className="text-sm text-muted-foreground text-right tabular-nums">
                             {cat.count}
                           </TableCell>
-                          <TableCell className="font-mono text-xs text-right">
+                          <TableCell className="text-sm text-right">
                             {cap != null ? (
                               <span
                                 className={
-                                  overCap ? "text-red-400" : "text-zinc-600"
+                                  overCap
+                                    ? "text-red-600 font-medium"
+                                    : "text-muted-foreground"
                                 }
                               >
                                 {formatCurrency(cap, sym)}
                                 {overCap && " ▲"}
                               </span>
                             ) : (
-                              <span className="text-zinc-700">—</span>
+                              <span className="text-muted-foreground/40">—</span>
                             )}
                           </TableCell>
                         </TableRow>
@@ -710,32 +742,32 @@ export default function DashboardPage() {
                   </TableBody>
                 </Table>
               ) : (
-                <p className="text-xs font-mono text-zinc-600">
-                  no categories yet
+                <p className="text-sm text-muted-foreground">
+                  No categories yet
                 </p>
               )}
-            </section>
+            </Card>
 
             {/* ── Recent Activity ── */}
-            <section className="border border-zinc-800 rounded-lg p-5">
-              <p className="text-xs font-mono text-zinc-500 uppercase tracking-wider mb-4">
-                recent activity
-              </p>
+            <Card className="p-5">
+              <h2 className="text-sm font-semibold text-foreground mb-4">
+                Recent activity
+              </h2>
               {transactions.length > 0 ? (
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-zinc-800 hover:bg-transparent">
-                      <TableHead className="text-xs font-mono text-zinc-500 uppercase">
-                        date
+                    <TableRow className="border-border hover:bg-transparent">
+                      <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Date
                       </TableHead>
-                      <TableHead className="text-xs font-mono text-zinc-500 uppercase">
-                        description
+                      <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Description
                       </TableHead>
-                      <TableHead className="text-xs font-mono text-zinc-500 uppercase">
-                        category
+                      <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Category
                       </TableHead>
-                      <TableHead className="text-xs font-mono text-zinc-500 uppercase text-right">
-                        amount
+                      <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wide text-right">
+                        Amount
                       </TableHead>
                       <TableHead className="w-20" />
                     </TableRow>
@@ -744,33 +776,43 @@ export default function DashboardPage() {
                     {transactions.map((tx) => (
                       <TableRow
                         key={tx.id}
-                        className="border-zinc-800 hover:bg-zinc-900/50"
+                        className="border-border hover:bg-muted/50"
                       >
-                        <TableCell className="font-mono text-xs text-zinc-500 tabular-nums">
+                        <TableCell className="text-sm text-muted-foreground tabular-nums">
                           {tx.date}
                         </TableCell>
-                        <TableCell className="font-mono text-sm text-zinc-200 max-w-[200px] truncate">
+                        <TableCell className="text-sm text-foreground max-w-[200px] truncate">
                           {tx.description}
                         </TableCell>
-                        <TableCell className="font-mono text-xs text-zinc-400">
-                          {tx.category}
+                        <TableCell className="text-sm">
+                          <span
+                            className="inline-flex items-center gap-1.5 text-muted-foreground"
+                          >
+                            <span
+                              className="h-1.5 w-1.5 rounded-full shrink-0"
+                              style={{
+                                backgroundColor: categoryColor(tx.category),
+                              }}
+                            />
+                            {tx.category}
+                          </span>
                         </TableCell>
-                        <TableCell className="font-mono text-sm text-zinc-200 tabular-nums text-right">
+                        <TableCell className="text-sm text-foreground tabular-nums text-right font-semibold">
                           {formatCurrency(tx.amount, sym)}
                         </TableCell>
                         <TableCell className="text-right">
                           <span className="flex gap-1 justify-end">
                             <button
                               onClick={() => openEdit(tx)}
-                              className="text-xs font-mono text-zinc-600 hover:text-zinc-300 px-1"
+                              className="text-xs text-muted-foreground hover:text-primary transition-colors px-1"
                             >
-                              edit
+                              Edit
                             </button>
                             <button
                               onClick={() => handleDelete(tx.id)}
-                              className="text-xs font-mono text-zinc-700 hover:text-red-400 px-1"
+                              className="text-xs text-muted-foreground hover:text-destructive transition-colors px-1"
                             >
-                              del
+                              Delete
                             </button>
                           </span>
                         </TableCell>
@@ -779,26 +821,26 @@ export default function DashboardPage() {
                   </TableBody>
                 </Table>
               ) : (
-                <p className="text-xs font-mono text-zinc-600">
-                  no transactions this month
+                <p className="text-sm text-muted-foreground">
+                  No transactions this month
                 </p>
               )}
-            </section>
+            </Card>
 
             {/* ── Spending Insights ── */}
-            <section className="border border-zinc-800 rounded-lg p-5">
-              <p className="text-xs font-mono text-zinc-500 uppercase tracking-wider mb-4">
-                insights
-              </p>
+            <Card className="p-5">
+              <h2 className="text-sm font-semibold text-foreground mb-4">
+                Insights
+              </h2>
               <ul className="flex flex-col gap-3">
                 {biggestCategory && biggestCategory.category && (
-                  <li className="text-sm font-mono text-zinc-300">
-                    <span className="text-zinc-500">biggest: </span>
+                  <li className="text-sm text-foreground">
+                    <span className="font-medium">Biggest spend: </span>
                     {biggestCategory.category} at{" "}
                     {formatCurrency(biggestCategory.total, sym)} (
                     {biggestCategory.pct.toFixed(0)}%)
                     {biggestCategory.total > 0 && (
-                      <span className="text-zinc-500">
+                      <span className="text-muted-foreground">
                         {" "}
                         — cut 20% → saves{" "}
                         {formatCurrency(biggestCategory.total * 0.2 * 12, sym)}
@@ -808,25 +850,32 @@ export default function DashboardPage() {
                   </li>
                 )}
                 {budget > 0 && (
-                  <li className="text-sm font-mono">
-                    <span className="text-zinc-500">pace: </span>
-                    <span className={onPace ? "text-emerald-400" : "text-amber-400"}>
+                  <li className="text-sm">
+                    <span className="font-medium text-foreground">Pace: </span>
+                    <span
+                      className={
+                        onPace ? "text-emerald-600" : "text-amber-600"
+                      }
+                    >
                       {onPace
-                        ? `on track (expected ${formatCurrency(Math.round(expectedByNow), sym)} by day ${daysElapsed})`
-                        : `running ahead — spent ${formatCurrency(spent, sym)}, expected ${formatCurrency(Math.round(expectedByNow), sym)}`}
+                        ? `On track (expected ${formatCurrency(Math.round(expectedByNow), sym)} by day ${daysElapsed})`
+                        : `Running ahead — spent ${formatCurrency(spent, sym)}, expected ${formatCurrency(Math.round(expectedByNow), sym)}`}
                     </span>
                   </li>
                 )}
                 {discretionary > 0 && (
-                  <li className="text-sm font-mono text-zinc-300">
-                    <span className="text-zinc-500">discretionary load: </span>
+                  <li className="text-sm text-foreground">
+                    <span className="font-medium">Discretionary: </span>
                     {formatCurrency(discretionary, sym)}
-                    <span className="text-zinc-500"> (food + shopping + entertainment)</span>
+                    <span className="text-muted-foreground">
+                      {" "}
+                      (food + shopping + entertainment)
+                    </span>
                   </li>
                 )}
                 {categoriesOverCap.length > 0 && (
-                  <li className="text-sm font-mono text-red-400">
-                    over cap:{" "}
+                  <li className="text-sm text-red-600">
+                    <span className="font-medium">Over cap: </span>
                     {categoriesOverCap
                       .map(
                         (c) =>
@@ -836,39 +885,40 @@ export default function DashboardPage() {
                   </li>
                 )}
                 {spent === 0 && (
-                  <li className="text-xs font-mono text-zinc-600">
-                    no spending recorded for {monthLabel(month)}
+                  <li className="text-sm text-muted-foreground">
+                    No spending recorded for {monthLabel(month)}
                   </li>
                 )}
               </ul>
-            </section>
+            </Card>
           </>
         )}
       </main>
 
       {/* ── Edit Dialog ── */}
       <Dialog open={!!editTx} onOpenChange={(open) => !open && setEditTx(null)}>
-        <DialogContent className="bg-zinc-900 border-zinc-700 text-zinc-100 max-w-md">
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-mono text-sm text-zinc-300">
-              edit transaction
+            <DialogTitle className="text-base font-semibold">
+              Edit transaction
             </DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-4 py-2">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-mono text-zinc-500">
-                description
+              <label className="text-sm font-medium text-foreground">
+                Description
               </label>
               <Input
                 value={editForm.description ?? ""}
                 onChange={(e) =>
                   setEditForm((f) => ({ ...f, description: e.target.value }))
                 }
-                className="bg-zinc-950 border-zinc-700 text-zinc-100 font-mono"
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-mono text-zinc-500">amount</label>
+              <label className="text-sm font-medium text-foreground">
+                Amount
+              </label>
               <Input
                 type="number"
                 value={editForm.amount ?? ""}
@@ -878,60 +928,57 @@ export default function DashboardPage() {
                     amount: parseFloat(e.target.value),
                   }))
                 }
-                className="bg-zinc-950 border-zinc-700 text-zinc-100 font-mono"
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-mono text-zinc-500">category</label>
+              <label className="text-sm font-medium text-foreground">
+                Category
+              </label>
               <Input
                 value={editForm.category ?? ""}
                 onChange={(e) =>
                   setEditForm((f) => ({ ...f, category: e.target.value }))
                 }
-                className="bg-zinc-950 border-zinc-700 text-zinc-100 font-mono"
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-mono text-zinc-500">date</label>
+              <label className="text-sm font-medium text-foreground">
+                Date
+              </label>
               <Input
                 type="date"
                 value={editForm.date ?? ""}
                 onChange={(e) =>
                   setEditForm((f) => ({ ...f, date: e.target.value }))
                 }
-                className="bg-zinc-950 border-zinc-700 text-zinc-100 font-mono"
               />
             </div>
             {editForm.notes !== undefined && (
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-mono text-zinc-500">notes</label>
+                <label className="text-sm font-medium text-foreground">
+                  Notes
+                </label>
                 <Input
                   value={editForm.notes ?? ""}
                   onChange={(e) =>
                     setEditForm((f) => ({ ...f, notes: e.target.value }))
                   }
-                  className="bg-zinc-950 border-zinc-700 text-zinc-100 font-mono"
                 />
               </div>
             )}
             {editError && (
-              <p className="text-xs font-mono text-red-400">error: {editError}</p>
+              <p className="text-sm text-destructive">Error: {editError}</p>
             )}
           </div>
           <DialogFooter>
             <Button
               variant="outline"
               onClick={() => setEditTx(null)}
-              className="font-mono text-xs border-zinc-700 text-zinc-400 bg-transparent hover:text-zinc-100"
             >
-              cancel
+              Cancel
             </Button>
-            <Button
-              onClick={handleEditSave}
-              disabled={editLoading}
-              className="font-mono text-xs bg-zinc-100 text-zinc-950 hover:bg-zinc-200"
-            >
-              {editLoading ? "saving..." : "save"}
+            <Button onClick={handleEditSave} disabled={editLoading}>
+              {editLoading ? "Saving…" : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>

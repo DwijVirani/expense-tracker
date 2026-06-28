@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { getCurrentUser, fetchAuthSession, signOut as amplifySignOut } from "aws-amplify/auth";
+import { configureAmplify } from "@/lib/amplify";
+
+configureAmplify();
 
 interface AuthUser {
   username: string;

@@ -36,6 +36,10 @@ app.include_router(telegram_internal.router)
 async def health():
     return {"status": "ok"}
 
+@app.get("/")
+async def root():
+    return {"message": "Expense Tracker API is running."}
+
 
 # Lambda entry point
 handler = Mangum(app, lifespan="on")
