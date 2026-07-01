@@ -1,4 +1,5 @@
 import aws_cdk as cdk
+from aws_cdk import aws_amplify as amplify_l1
 from aws_cdk import aws_amplify_alpha as amplify
 from aws_cdk import aws_codebuild as codebuild
 from aws_cdk import aws_cognito as cognito
@@ -67,6 +68,9 @@ class AmplifyStack(cdk.Stack):
         )
 
         branch = amplify_app.add_branch("main" if stage == "prod" else "dev")
+        cfn_branch = branch.node.default_child
+        assert isinstance(cfn_branch, amplify_l1.CfnBranch)
+        cfn_branch.framework = "Next.js - SSR"
 
         cdk.CfnOutput(
             self,
