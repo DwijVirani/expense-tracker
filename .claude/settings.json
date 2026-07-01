@@ -33,7 +33,7 @@
       "Bash(black*)",
       "Bash(mypy*)",
 
-      "Bash(mongosh --eval \"db.stats()\"*)",
+      "Bash(mongosh --eval*)",
       "Bash(mongod --version)",
 
       "Bash(amplify status*)",
