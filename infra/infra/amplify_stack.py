@@ -34,6 +34,7 @@ class AmplifyStack(cdk.Stack):
                 oauth_token=cdk.SecretValue.secrets_manager(github_token_secret_name),
             ),
             environment_variables={
+                "AMPLIFY_MONOREPO_APP_ROOT": "frontend",
                 "NEXT_PUBLIC_API_BASE_URL": api_url,
                 "NEXT_PUBLIC_AWS_REGION": self.region,
                 "NEXT_PUBLIC_COGNITO_USER_POOL_ID": user_pool.user_pool_id,
