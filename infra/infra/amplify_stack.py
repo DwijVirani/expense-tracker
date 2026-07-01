@@ -41,23 +41,27 @@ class AmplifyStack(cdk.Stack):
             build_spec=codebuild.BuildSpec.from_object_to_yaml(
                 {
                     "version": "1.0",
-                    "frontend": {
-                        "phases": {
-                            "preBuild": {
-                                "commands": [
-                                    "cd frontend",
-                                    "npm install -g pnpm",
-                                    "pnpm install --frozen-lockfile",
-                                ]
+                    "applications": [
+                        {
+                            "appRoot": "frontend",
+                            "frontend": {
+                                "phases": {
+                                    "preBuild": {
+                                        "commands": [
+                                            "npm install -g pnpm",
+                                            "pnpm install --frozen-lockfile",
+                                        ]
+                                    },
+                                    "build": {"commands": ["pnpm build"]},
+                                },
+                                "artifacts": {
+                                    "baseDirectory": ".next",
+                                    "files": ["**/*"],
+                                },
+                                "cache": {"paths": ["node_modules/**/*"]},
                             },
-                            "build": {"commands": ["pnpm build"]},
-                        },
-                        "artifacts": {
-                            "baseDirectory": "frontend/.next",
-                            "files": ["**/*"],
-                        },
-                        "cache": {"paths": ["frontend/node_modules/**/*"]},
-                    },
+                        }
+                    ],
                 }
             ),
         )
