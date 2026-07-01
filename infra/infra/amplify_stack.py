@@ -26,6 +26,7 @@ class AmplifyStack(cdk.Stack):
             self,
             "FrontendApp",
             app_name=f"expense-tracker-{stage}",
+            platform=amplify.Platform.WEB_COMPUTE,
             source_code_provider=amplify.GitHubSourceCodeProvider(
                 owner=repo_owner,
                 repository=repo_name,
