@@ -6,6 +6,7 @@ class Settings(BaseSettings):
 
     mongo_uri: str = "mongodb://localhost:27017/expense_tracker"
     aws_region: str = "ap-south-1"
+    log_level: str = "INFO"
     telegram_service_secret: str = ""
     cognito_user_pool_id: str = ""
     cognito_client_id: str = ""

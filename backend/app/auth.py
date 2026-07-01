@@ -7,6 +7,9 @@ import json
 from fastapi import HTTPException, Request, status
 
 from app import db
+from app.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def _decode_jwt_payload(token: str) -> dict:
@@ -26,9 +29,7 @@ async def get_current_user(request: Request) -> dict:
     # requestContext.authorizer.claims. Mangum exposes the raw event via scope.
     event: dict = request.scope.get("aws.event", {})
     claims: dict = (
-        event.get("requestContext", {})
-        .get("authorizer", {})
-        .get("claims", {})
+        event.get("requestContext", {}).get("authorizer", {}).get("claims", {})
     )
 
     sub: str | None = claims.get("sub")
@@ -49,6 +50,7 @@ async def get_current_user(request: Request) -> dict:
         email = request.headers.get("X-Dev-Email", "dev@local")
 
     if not sub:
+        logger.warning("authentication failed, no sub found in claims/headers")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",

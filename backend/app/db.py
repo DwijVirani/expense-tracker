@@ -8,6 +8,9 @@ import motor.motor_asyncio
 from bson import ObjectId
 
 from app.config import settings
+from app.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 _client: motor.motor_asyncio.AsyncIOMotorClient | None = None
 
@@ -24,6 +27,7 @@ def get_db() -> motor.motor_asyncio.AsyncIOMotorDatabase:
 
 
 # ── Users ────────────────────────────────────────────────────────────────────
+
 
 async def get_user_by_cognito_sub(sub: str) -> dict | None:
     return await get_db()["users"].find_one({"cognito_sub": sub})
@@ -44,6 +48,7 @@ async def create_user(sub: str, email: str) -> dict:
     }
     result = await get_db()["users"].insert_one(doc)
     doc["_id"] = result.inserted_id
+    logger.info("created new user", user_id=doc["_id"], cognito_sub=sub)
     return doc
 
 
@@ -63,6 +68,7 @@ async def get_user_by_telegram_chat_id(chat_id: int) -> dict | None:
 
 
 # ── Transactions ─────────────────────────────────────────────────────────────
+
 
 async def add_transaction(user_id: ObjectId, tx: dict) -> dict:
     doc: dict[str, Any] = {
@@ -106,18 +112,20 @@ async def get_transactions(
         filt["type"] = tx_type
 
     cursor = (
-        get_db()["transactions"]
-        .find(filt)
-        .sort("date", -1)
-        .skip(skip)
-        .limit(limit)
+        get_db()["transactions"].find(filt).sort("date", -1).skip(skip).limit(limit)
     )
     return await cursor.to_list(length=limit)
 
 
 async def month_total(user_id: ObjectId, month: str) -> float:
     pipeline = [
-        {"$match": {"user_id": user_id, "date": {"$regex": f"^{month}"}, "type": "expense"}},
+        {
+            "$match": {
+                "user_id": user_id,
+                "date": {"$regex": f"^{month}"},
+                "type": "expense",
+            }
+        },
         {"$group": {"_id": None, "total": {"$sum": "$amount"}}},
     ]
     result = await get_db()["transactions"].aggregate(pipeline).to_list(length=1)
@@ -130,15 +138,33 @@ async def summary(user_id: ObjectId, month: str) -> dict:
 
     # Current month expenses
     pipeline_cat = [
-        {"$match": {"user_id": user_id, "date": {"$regex": f"^{month}"}, "type": "expense"}},
-        {"$group": {"_id": "$category", "total": {"$sum": "$amount"}, "count": {"$sum": 1}}},
+        {
+            "$match": {
+                "user_id": user_id,
+                "date": {"$regex": f"^{month}"},
+                "type": "expense",
+            }
+        },
+        {
+            "$group": {
+                "_id": "$category",
+                "total": {"$sum": "$amount"},
+                "count": {"$sum": 1},
+            }
+        },
         {"$sort": {"total": -1}},
     ]
     by_category = await coll.aggregate(pipeline_cat).to_list(length=100)
 
     # Daily spend
     pipeline_daily = [
-        {"$match": {"user_id": user_id, "date": {"$regex": f"^{month}"}, "type": "expense"}},
+        {
+            "$match": {
+                "user_id": user_id,
+                "date": {"$regex": f"^{month}"},
+                "type": "expense",
+            }
+        },
         {"$group": {"_id": "$date", "total": {"$sum": "$amount"}}},
         {"$sort": {"_id": 1}},
     ]
@@ -170,7 +196,9 @@ async def summary(user_id: ObjectId, month: str) -> dict:
                 "category": r["_id"],
                 "total": r["total"],
                 "count": r["count"],
-                "pct": round(r["total"] / month_expense_total * 100, 1) if month_expense_total else 0,
+                "pct": round(r["total"] / month_expense_total * 100, 1)
+                if month_expense_total
+                else 0,
             }
             for r in by_category
         ],
@@ -180,6 +208,7 @@ async def summary(user_id: ObjectId, month: str) -> dict:
 
 
 # ── Link codes ───────────────────────────────────────────────────────────────
+
 
 async def ensure_indexes() -> None:
     """Call once at app startup to create TTL + unique indexes."""

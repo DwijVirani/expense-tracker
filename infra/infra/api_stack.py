@@ -49,7 +49,7 @@ class ApiStack(cdk.Stack):
                 backend_image.repository, tag_or_digest=backend_image.image_tag
             ),
             memory_size=512,
-            timeout=cdk.Duration.seconds(30),
+            timeout=cdk.Duration.minutes(5),
             environment={
                 "MONGO_URI": mongo_secret.secret_value.unsafe_unwrap(),
                 "AWS_REGION_NAME": self.region,

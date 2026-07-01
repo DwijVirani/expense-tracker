@@ -8,6 +8,9 @@ from pydantic import BaseModel
 
 from app import db
 from app.auth import get_current_user
+from app.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
@@ -37,6 +40,7 @@ async def update_settings(body: SettingsPatch, user: UserDep):
     patch = {k: v for k, v in body.model_dump().items() if v is not None}
     if patch:
         await db.update_user(user["_id"], patch)
+        logger.info("settings updated", user_id=user["_id"], fields=list(patch.keys()))
     return {"ok": True}
 
 
@@ -57,4 +61,5 @@ async def generate_link_code(user: UserDep):
             "used": False,
         }
     )
+    logger.info("telegram link code generated", user_id=user["_id"])
     return {"code": code, "expires_in_seconds": 600}

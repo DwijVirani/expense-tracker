@@ -5,12 +5,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
 
 from app import db
+from app.config import settings as app_settings
 from app.routers import settings, telegram_internal, transactions
+from app.utils.logging import get_logger, setup_logging
+
+setup_logging(app_settings.log_level)
+logger = get_logger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await db.ensure_indexes()
+    logger.info("startup complete, indexes ensured")
     yield
 
 
@@ -35,6 +41,7 @@ app.include_router(telegram_internal.router)
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
 
 @app.get("/")
 async def root():
